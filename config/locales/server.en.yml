@@ -3,6 +3,9 @@ en:
     points_mall_enabled: "Enable Points Mall plugin"
     points_mall_checkin_points: "Points awarded for daily check-in"
     points_mall_checkin_streak_bonus: "Bonus points for consecutive check-ins"
+    points_mall_makeup_price_tier_1: "Makeup card price for 1st purchase"
+    points_mall_makeup_price_tier_2: "Makeup card price for 2nd purchase"
+    points_mall_makeup_price_tier_3: "Makeup card price for 3rd purchase"
   points_mall:
     levels:
       lv1: "Tier 1 · Candy Bean"

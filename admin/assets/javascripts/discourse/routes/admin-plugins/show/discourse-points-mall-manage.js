@@ -10,10 +10,23 @@ function defaultProduct() {
     points_cost: 100,
     stock: -1,
     product_type: "virtual",
+    category: "",
+    featured: false,
+    badge_text: "",
     image_url: "",
     enabled: true,
     sort_order: 0,
   });
+}
+
+function defaultMakeupConfig() {
+  return {
+    feature_ready: false,
+    tier_1: 1000,
+    tier_2: 3000,
+    tier_3: 5000,
+    prices: [1000, 3000, 5000],
+  };
 }
 
 export default class AdminPluginsShowDiscoursePointsMallManage extends DiscourseRoute {
@@ -71,7 +84,10 @@ export default class AdminPluginsShowDiscoursePointsMallManage extends Discourse
         todayCheckinPoints: checkinSummary.today_points || 0,
       },
       newProduct: defaultProduct(),
-      makeupConfig: productsRes.makeup || {},
+      makeupConfig: EmberObject.create({
+        ...defaultMakeupConfig(),
+        ...(productsRes.makeup || {}),
+      }),
       productTypes: ["virtual", "physical"],
       orderTypes: ["all", "physical", "virtual"],
       orderStatuses: ["pending", "processing", "completed", "cancelled"],

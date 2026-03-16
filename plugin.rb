@@ -2,7 +2,7 @@
 
 # name: discourse-points-mall
 # about: A points mall plugin that integrates with discourse-gamification for check-ins and shop
-# version: 0.1.1
+# version: 0.2.0
 # authors: VegaMonika
 # url: https://github.com/VegaMonika/discourse-points-mall
 # required_version: 2.7.0
@@ -36,6 +36,7 @@ end
 
 require_relative "lib/discourse_points_mall/engine"
 require_relative "lib/discourse_points_mall/points_manager"
+require_relative "lib/discourse_points_mall/makeup_pricing"
 
 after_initialize do
   add_to_class(:user, :points_balance) do
@@ -88,6 +89,7 @@ after_initialize do
       post "/manage/products" => "discourse_points_mall/admin_products#create"
       put "/manage/products/:id" => "discourse_points_mall/admin_products#update"
       delete "/manage/products/:id" => "discourse_points_mall/admin_products#destroy"
+      put "/manage/makeup-config" => "discourse_points_mall/admin_products#update_makeup_config"
 
       get "/manage/orders" => "discourse_points_mall/admin_orders#index"
       put "/manage/orders/:id" => "discourse_points_mall/admin_orders#update"

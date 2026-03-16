@@ -351,6 +351,8 @@ module DiscoursePointsMall
 
     def default_makeup_card_status
       month_key = Time.zone.today.beginning_of_month
+      pricing = DiscoursePointsMall::MakeupPricing.payload
+
       {
         month_key: month_key,
         max_per_month: 3,
@@ -359,8 +361,11 @@ module DiscoursePointsMall
         available_count: 0,
         can_purchase: true,
         can_use: false,
-        next_price: 1000,
-        prices: [1000, 3000, 5000],
+        next_price: pricing[:tier_1],
+        prices: pricing[:prices],
+        tier_1: pricing[:tier_1],
+        tier_2: pricing[:tier_2],
+        tier_3: pricing[:tier_3],
         expires_at: month_key.end_of_month,
       }
     end

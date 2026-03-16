@@ -98,6 +98,54 @@
 }
 
 .points-mall-shop {
+  .shop-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .shop-insight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shop-toolbar {
+    padding: 8px;
+  }
+
+  .shop-filter-row {
+    overflow: auto;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+
+    .shop-filter-chip {
+      flex: 0 0 auto;
+    }
+  }
+
+  .shop-sort-row {
+    overflow: auto;
+    white-space: nowrap;
+    flex-wrap: nowrap;
+
+    .shop-sort-chip {
+      flex: 0 0 auto;
+    }
+  }
+
+  .shop-featured-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-section {
+    padding: 10px;
+  }
+
+  .shop-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
   .products-grid {
     grid-template-columns: 1fr;
   }
@@ -199,6 +247,12 @@
 .points-mall-modal {
   width: 100%;
   max-height: 95vh;
+}
+
+.points-mall-admin {
+  .points-mall-admin-makeup-config {
+    grid-template-columns: 1fr;
+  }
 }
 
 .points-mall-modal-header {

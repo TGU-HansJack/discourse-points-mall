@@ -3,6 +3,9 @@ zh_CN:
     points_mall_enabled: "启用积分商城插件"
     points_mall_checkin_points: "每日签到获得的积分"
     points_mall_checkin_streak_bonus: "连续签到奖励积分"
+    points_mall_makeup_price_tier_1: "补签卡第 1 次购买价格"
+    points_mall_makeup_price_tier_2: "补签卡第 2 次购买价格"
+    points_mall_makeup_price_tier_3: "补签卡第 3 次购买价格"
   points_mall:
     levels:
       lv1: "初阶·小糖豆"

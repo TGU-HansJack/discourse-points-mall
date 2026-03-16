@@ -10,6 +10,8 @@ module DiscoursePointsMall
       ::PointsMallProduct.ensure_makeup_card!
       products = ::PointsMallProduct.ordered.to_a
       makeup_status = current_makeup_status
+      redeemed_counts = ::PointsMallOrder.group(:product_id).count
+      last_redeemed_at = ::PointsMallOrder.group(:product_id).maximum(:created_at)
 
       visible_products =
         products.select do |product|
@@ -25,8 +27,15 @@ module DiscoursePointsMall
             points_cost: product.points_cost,
             stock: product.stock || -1,
             product_type: product.product_type,
+            sort_order: product.sort_order,
+            category: (::PointsMallProduct.has_category? ? product.category : nil),
+            featured: (::PointsMallProduct.has_featured? ? product.featured : false),
+            badge_text: (::PointsMallProduct.has_badge_text? ? product.badge_text : nil),
             image_url: product.image_url,
             enabled: product.enabled,
+            created_at: product.created_at,
+            redeemed_count: redeemed_counts[product.id].to_i,
+            last_redeemed_at: last_redeemed_at[product.id],
             product_key: (product.respond_to?(:product_key) ? product.product_key : nil),
             is_makeup_card: product.makeup_card?,
           }
@@ -64,6 +73,8 @@ module DiscoursePointsMall
     end
 
     def fallback_makeup_status
+      pricing = DiscoursePointsMall::MakeupPricing.payload
+
       {
         max_per_month: 3,
         purchased_count: 0,
@@ -71,8 +82,11 @@ module DiscoursePointsMall
         available_count: 0,
         can_purchase: true,
         can_use: false,
-        next_price: 1000,
-        prices: [1000, 3000, 5000],
+        next_price: pricing[:tier_1],
+        prices: pricing[:prices],
+        tier_1: pricing[:tier_1],
+        tier_2: pricing[:tier_2],
+        tier_3: pricing[:tier_3],
         expires_at: Time.zone.today.end_of_month,
       }
     end

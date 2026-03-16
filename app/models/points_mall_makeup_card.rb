@@ -4,7 +4,6 @@ class PointsMallMakeupCard < ActiveRecord::Base
   self.table_name = "points_mall_makeup_cards"
 
   MAX_PER_MONTH = 3
-  PRICE_TIERS = [1000, 3000, 5000].freeze
 
   belongs_to :user
 
@@ -34,7 +33,7 @@ class PointsMallMakeupCard < ActiveRecord::Base
 
   def next_price
     return nil unless can_purchase?
-    PRICE_TIERS[purchased_count]
+    DiscoursePointsMall::MakeupPricing.tiers[purchased_count]
   end
 
   def available_count
@@ -56,6 +55,8 @@ class PointsMallMakeupCard < ActiveRecord::Base
   end
 
   def status_payload
+    pricing = DiscoursePointsMall::MakeupPricing.payload
+
     {
       month_key: month_key,
       max_per_month: MAX_PER_MONTH,
@@ -65,7 +66,10 @@ class PointsMallMakeupCard < ActiveRecord::Base
       can_purchase: can_purchase?,
       can_use: can_use?,
       next_price: next_price,
-      prices: PRICE_TIERS,
+      prices: pricing[:prices],
+      tier_1: pricing[:tier_1],
+      tier_2: pricing[:tier_2],
+      tier_3: pricing[:tier_3],
       expires_at: month_key.end_of_month,
     }
   end

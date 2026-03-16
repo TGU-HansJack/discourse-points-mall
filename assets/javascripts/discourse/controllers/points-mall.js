@@ -1,6 +1,7 @@
 import Controller from "@ember/controller";
 import { action } from "@ember/object";
 import { service } from "@ember/service";
+import { htmlSafe } from "@ember/template";
 import { tracked } from "@glimmer/tracking";
 import { ajax } from "discourse/lib/ajax";
 import { popupAjaxError } from "discourse/lib/ajax-error";
@@ -34,6 +35,10 @@ export default class PointsMallController extends Controller {
   @tracked editingAddressId = null;
   @tracked addressEditorForm = blankAddressForm(false);
   @tracked isSavingAddress = false;
+  @tracked shopTypeFilter = "all";
+  @tracked shopCategoryFilter = "all";
+  @tracked shopKeyword = "";
+  @tracked shopSort = "featured";
   @tracked orderTypeFilter = "all";
   @tracked pointsFilter = "all";
 
@@ -81,8 +86,15 @@ export default class PointsMallController extends Controller {
     };
   }
 
+  get levelProgressStyle() {
+    return htmlSafe(`width: ${Number(this.levelProgress.progress_percent || 0)}%`);
+  }
+
   get rankingUsers() {
-    return this.checkinSummary.ranking || [];
+    return (this.checkinSummary.ranking || []).map((row) => ({
+      ...row,
+      avatar_url: this.avatarUrlFromTemplate(row.avatar_template, 56),
+    }));
   }
 
   get hasRankingUsers() {
@@ -90,13 +102,19 @@ export default class PointsMallController extends Controller {
   }
 
   get makeupCardStatus() {
+    const defaults = this.makeupPricingDefaults;
+
     return {
       purchased_count: 0,
       used_count: 0,
       available_count: 0,
       can_purchase: true,
       can_use: false,
-      next_price: 1000,
+      next_price: defaults.tier_1,
+      prices: defaults.prices,
+      tier_1: defaults.tier_1,
+      tier_2: defaults.tier_2,
+      tier_3: defaults.tier_3,
       ...(this.checkinSummary.makeup_card || {}),
     };
   }
@@ -150,6 +168,147 @@ export default class PointsMallController extends Controller {
     return ["all", "income", "expense", "checkin", "shop", "community", "other"];
   }
 
+  get shopProducts() {
+    return (this.model.products || []).map((product) => this.decorateShopProduct(product));
+  }
+
+  get shopTypeFilters() {
+    return ["all", "physical", "virtual"];
+  }
+
+  get shopSortOptions() {
+    return ["featured", "popular", "price_asc", "price_desc", "latest"];
+  }
+
+  get shopCategoryOptions() {
+    const keys = [];
+    const seen = new Set();
+    const products =
+      this.shopTypeFilter === "all"
+        ? this.shopProducts
+        : this.shopProducts.filter((product) => product.product_type === this.shopTypeFilter);
+
+    products.forEach((product) => {
+      const key = this.shopCategoryKey(product);
+      if (!seen.has(key)) {
+        seen.add(key);
+        keys.push(key);
+      }
+    });
+
+    return [
+      { key: "all", label: I18n.t("points_mall.shop.filters.category.all") },
+      ...keys.map((key) => ({
+        key,
+        label: this.shopCategoryLabelByKey(key),
+      })),
+    ];
+  }
+
+  get filteredShopProducts() {
+    const keyword = this.shopKeyword?.trim()?.toLowerCase() || "";
+
+    const products = this.shopProducts.filter((product) => {
+      if (this.shopTypeFilter !== "all" && product.product_type !== this.shopTypeFilter) {
+        return false;
+      }
+
+      const categoryKey = this.shopCategoryKey(product);
+      if (this.shopCategoryFilter !== "all" && categoryKey !== this.shopCategoryFilter) {
+        return false;
+      }
+
+      if (!keyword) {
+        return true;
+      }
+
+      const haystack = [product.name, product.description, product.category]
+        .map((item) => (item || "").toLowerCase())
+        .join(" ");
+      return haystack.includes(keyword);
+    });
+
+    return [...products].sort((left, right) => this.compareShopProducts(left, right));
+  }
+
+  get shopSections() {
+    const sectionMap = new Map();
+
+    this.filteredShopProducts.forEach((product) => {
+      const key = this.shopCategoryKey(product);
+      if (!sectionMap.has(key)) {
+        sectionMap.set(key, []);
+      }
+      sectionMap.get(key).push(product);
+    });
+
+    return Array.from(sectionMap.entries()).map(([key, products]) => ({
+      key,
+      label: this.shopCategoryLabelByKey(key),
+      count: products.length,
+      products,
+    }));
+  }
+
+  get featuredShopProducts() {
+    return this.filteredShopProducts.filter((product) => product.featured).slice(0, 4);
+  }
+
+  get showFeaturedShelf() {
+    return (
+      this.shopCategoryFilter === "all" &&
+      !this.shopKeyword?.trim() &&
+      this.featuredShopProducts.length > 0
+    );
+  }
+
+  get shopInsights() {
+    const products = this.filteredShopProducts;
+    const categories = new Set(products.map((product) => this.shopCategoryKey(product)));
+    const featured = products.filter((product) => product.featured).length;
+    const redeemed = products.reduce(
+      (sum, product) => sum + Number(product.redeemed_count || 0),
+      0
+    );
+
+    return {
+      productCount: products.length,
+      categoryCount: categories.size,
+      featuredCount: featured,
+      redeemedCount: redeemed,
+    };
+  }
+
+  get makeupPricingDefaults() {
+    return {
+      prices: [1000, 3000, 5000],
+      tier_1: 1000,
+      tier_2: 3000,
+      tier_3: 5000,
+    };
+  }
+
+  decorateShopProduct(product) {
+    if (!product?.is_makeup_card) {
+      return product;
+    }
+
+    const makeupCard = {
+      ...this.makeupPricingDefaults,
+      ...(product.makeup_card || {}),
+    };
+
+    return {
+      ...product,
+      makeup_card: makeupCard,
+      makeup_tier_text: I18n.t("points_mall.shop.makeup.tiered_price", {
+        first: makeupCard.tier_1,
+        second: makeupCard.tier_2,
+        third: makeupCard.tier_3,
+      }),
+    };
+  }
+
   get pointsSummary() {
     return {
       income_count: 0,
@@ -194,11 +353,15 @@ export default class PointsMallController extends Controller {
 
   get filteredOrders() {
     const orders = this.model.orders || [];
-    if (this.orderTypeFilter === "all") {
-      return orders;
-    }
+    const filtered =
+      this.orderTypeFilter === "all"
+        ? orders
+        : orders.filter((order) => this.orderProductType(order) === this.orderTypeFilter);
 
-    return orders.filter((order) => this.orderProductType(order) === this.orderTypeFilter);
+    return filtered.map((order) => ({
+      ...order,
+      display_product_type: this.orderProductType(order),
+    }));
   }
 
   get hasFilteredOrders() {
@@ -240,6 +403,27 @@ export default class PointsMallController extends Controller {
   @action
   switchTab(tab) {
     this.activeTab = tab;
+  }
+
+  @action
+  setShopTypeFilter(filter) {
+    this.shopTypeFilter = filter;
+    this.shopCategoryFilter = "all";
+  }
+
+  @action
+  setShopCategoryFilter(filter) {
+    this.shopCategoryFilter = filter;
+  }
+
+  @action
+  setShopSort(sort) {
+    this.shopSort = sort;
+  }
+
+  @action
+  updateShopKeyword(event) {
+    this.shopKeyword = event?.target?.value || "";
   }
 
   @action
@@ -361,11 +545,6 @@ export default class PointsMallController extends Controller {
     }
 
     this.resetPurchaseModal();
-  }
-
-  @action
-  stopEvent(event) {
-    event.stopPropagation();
   }
 
   @action
@@ -730,7 +909,94 @@ export default class PointsMallController extends Controller {
     return order?.product?.product_type || "virtual";
   }
 
-  avatarUrl(template, size = 56) {
+  avatarUrlFromTemplate(template, size = 56) {
     return template ? template.replace("{size}", String(size)) : null;
+  }
+
+  shopCategoryKey(product) {
+    const key = (product?.category || "").trim();
+    if (key.length) {
+      return key;
+    }
+
+    return product?.product_type === "physical" ? "default_physical" : "default_virtual";
+  }
+
+  shopCategoryLabelByKey(key) {
+    if (!key || key === "uncategorized") {
+      return I18n.t("points_mall.shop.filters.category.uncategorized");
+    }
+
+    if (key === "default_physical") {
+      return I18n.t("points_mall.shop.filters.category.default_physical");
+    }
+
+    if (key === "default_virtual") {
+      return I18n.t("points_mall.shop.filters.category.default_virtual");
+    }
+
+    return key;
+  }
+
+  compareShopProducts(left, right) {
+    switch (this.shopSort) {
+      case "popular":
+        return this.compareByPopular(left, right);
+      case "price_asc":
+        return this.compareByNumber(left?.points_cost, right?.points_cost, true);
+      case "price_desc":
+        return this.compareByNumber(left?.points_cost, right?.points_cost, false);
+      case "latest":
+        return this.compareByNumber(this.productCreatedAt(right), this.productCreatedAt(left), true);
+      default:
+        return this.compareByDefault(left, right);
+    }
+  }
+
+  compareByDefault(left, right) {
+    const featuredDiff = Number(Boolean(right?.featured)) - Number(Boolean(left?.featured));
+    if (featuredDiff !== 0) {
+      return featuredDiff;
+    }
+
+    const sortDiff = this.compareByNumber(left?.sort_order, right?.sort_order, true);
+    if (sortDiff !== 0) {
+      return sortDiff;
+    }
+
+    const popularDiff = this.compareByPopular(left, right);
+    if (popularDiff !== 0) {
+      return popularDiff;
+    }
+
+    return this.compareByNumber(this.productCreatedAt(right), this.productCreatedAt(left), true);
+  }
+
+  compareByPopular(left, right) {
+    const redeemedDiff = this.compareByNumber(
+      right?.redeemed_count,
+      left?.redeemed_count,
+      true
+    );
+    if (redeemedDiff !== 0) {
+      return redeemedDiff;
+    }
+
+    return this.compareByNumber(this.productCreatedAt(right), this.productCreatedAt(left), true);
+  }
+
+  compareByNumber(left, right, asc = true) {
+    const leftValue = Number(left || 0);
+    const rightValue = Number(right || 0);
+
+    if (leftValue === rightValue) {
+      return 0;
+    }
+
+    return asc ? leftValue - rightValue : rightValue - leftValue;
+  }
+
+  productCreatedAt(product) {
+    return Date.parse(product?.created_at || "") || 0;
   }
 }

@@ -27,6 +27,9 @@ export default class AdminPluginsShowDiscoursePointsMallManageController extends
           ? -1
           : Number(product.stock),
       product_type: product.product_type || "virtual",
+      category: (product.category || "").trim(),
+      featured: !!product.featured,
+      badge_text: (product.badge_text || "").trim(),
       image_url: product.image_url,
       enabled: !!product.enabled,
       sort_order: Number(product.sort_order || 0),
@@ -59,7 +62,14 @@ export default class AdminPluginsShowDiscoursePointsMallManageController extends
       orders = orders.filter((order) => order.status === this.adminOrderStatusFilter);
     }
 
-    return orders;
+    return orders.map((order) => {
+      const displayProductType = this.adminOrderType(order);
+      set(order, "display_product_type", displayProductType);
+      set(order, "avatar_url", this.avatarUrlFromTemplate(order.avatar_template, 48));
+      set(order, "user_role_label_key", this.userRoleLabelKey(order));
+      set(order, "user_role_class", this.userRoleClass(order));
+      return order;
+    });
   }
 
   get adminOrderStatuses() {
@@ -80,7 +90,7 @@ export default class AdminPluginsShowDiscoursePointsMallManageController extends
     );
   }
 
-  avatarUrl(template, size = 45) {
+  avatarUrlFromTemplate(template, size = 45) {
     return template ? template.replace("{size}", String(size)) : null;
   }
 
@@ -117,6 +127,11 @@ export default class AdminPluginsShowDiscoursePointsMallManageController extends
     });
   }
 
+  updateMakeupConfigValue(field, event) {
+    const nextValue = Number(event?.target?.value || 0);
+    set(this.model.makeupConfig, field, nextValue);
+  }
+
   @action
   async createProduct() {
     try {
@@ -133,6 +148,9 @@ export default class AdminPluginsShowDiscoursePointsMallManageController extends
         points_cost: 100,
         stock: -1,
         product_type: "virtual",
+        category: "",
+        featured: false,
+        badge_text: "",
         image_url: "",
         enabled: true,
         sort_order: 0,
@@ -156,6 +174,37 @@ export default class AdminPluginsShowDiscoursePointsMallManageController extends
         }
       );
       Object.assign(product, res.product);
+      this.success();
+    } catch (error) {
+      popupAjaxError(error);
+    }
+  }
+
+  @action
+  setMakeupTier(field, event) {
+    this.updateMakeupConfigValue(field, event);
+  }
+
+  @action
+  async saveMakeupConfig() {
+    try {
+      const makeupConfig = this.model.makeupConfig;
+      const res = await ajax("/admin/plugins/discourse-points-mall/manage/makeup-config", {
+        type: "PUT",
+        data: {
+          tier_1: Number(makeupConfig.tier_1 || 0),
+          tier_2: Number(makeupConfig.tier_2 || 0),
+          tier_3: Number(makeupConfig.tier_3 || 0),
+        },
+      });
+
+      Object.entries(res.makeup || {}).forEach(([key, value]) => set(makeupConfig, key, value));
+
+      const makeupProduct = this.model.products.find((product) => product.is_makeup_card);
+      if (makeupProduct) {
+        set(makeupProduct, "points_cost", Number(res.makeup?.tier_1 || makeupProduct.points_cost || 0));
+      }
+
       this.success();
     } catch (error) {
       popupAjaxError(error);
@@ -187,6 +236,11 @@ export default class AdminPluginsShowDiscoursePointsMallManageController extends
   @action
   setProductEnabled(product, event) {
     product.enabled = boolFromEvent(event);
+  }
+
+  @action
+  setProductFeatured(product, event) {
+    product.featured = boolFromEvent(event);
   }
 
   @action
