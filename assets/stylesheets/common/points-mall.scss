@@ -48,14 +48,15 @@
 
     .points-balance-card {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
-      align-items: flex-end;
+      flex-direction: row;
+      align-items: baseline;
+      gap: 8px;
       padding: 10px 16px;
       border-radius: 12px;
       border: 1px solid var(--primary-low);
       background: var(--secondary);
       min-width: 140px;
+      white-space: nowrap;
 
       span {
         font-size: 0.85em;
@@ -64,8 +65,9 @@
 
       strong {
         font-size: 1.9em;
-        line-height: 1.1;
+        line-height: 1;
         color: var(--primary);
+        font-variant-numeric: tabular-nums;
       }
     }
   }
